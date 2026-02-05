@@ -39,7 +39,7 @@ docker pull ghcr.io/bvidotto/docker-sleep-proxy:latest
 
 ## Quick Start
 
-### Building from Source
+### Basic Setup
 
 ```yaml
 version: '3.8'
@@ -90,7 +90,7 @@ All configuration is done via environment variables:
 | `SLEEP_TIMEOUT` | No | `86400` | Seconds of inactivity before stopping containers (24h default) |
 | `CHECK_INTERVAL` | No | `5` | Seconds between health checks during startup |
 | `ENDPOINT_PREFIX` | No | `sleep-proxy` | Prefix for proxy management endpoints |
-| `EXCLUSION_LABEL` | No | `sleep-proxy.exclude` | Label to exclude containers from lifecycle management |
+| `ALLOW_LIST_MODE` | No | `false` | When `true`, only containers with `sleep-proxy.enable=true` are managed (allowlist). When `false`, all containers are managed except those with `sleep-proxy.enable=false` (denylist) |
 | `DOCKER_HOST` | No | - | Docker host URL (e.g., `tcp://remote-docker:2375` for remote Docker or through proxy) |
 
 ## Management Endpoints
@@ -115,36 +115,122 @@ Or simply visit in browser: `http://localhost:8000/sleep-proxy/shutdown`
 
 Returns: `{"status":"success","message":"Containers stopped"}`
 
-## Excluding Containers
+## Container Lifecycle Management
 
-You can exclude specific containers from the sleep-proxy lifecycle management by adding a label:
+The sleep-proxy provides flexible control over which containers are managed through a combination of `ALLOW_LIST_MODE` and the `MANAGE_LABEL`.
+
+### Denylist Mode (Default)
+
+By default (`ALLOW_LIST_MODE=false`), **all containers in the project are managed** except those explicitly excluded.
 
 ```yaml
 services:
-  always-on-db:
-    image: postgres
-    labels:
-      - "sleep-proxy.exclude=true"  # This container won't be stopped
+  sleep-proxy:
+    build: ./proxy
+    ports:
+      - '8000:8000'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TARGET_SERVICE=myapp
+      - TARGET_PORT=8080
+      # ALLOW_LIST_MODE defaults to false (denylist mode)
     networks:
       - app-network
 
   myapp:
     image: your-app
-    # This container will be managed (started/stopped) by the proxy
+    # No label = will be managed (started/stopped by proxy)
+    networks:
+      - app-network
+
+  database:
+    image: postgres
+    labels:
+      - "sleep-proxy.enable=false"  # Explicitly excluded, always stays running
+    networks:
+      - app-network
+
+  cache:
+    image: redis
+    labels:
+      - "sleep-proxy.enable=false"  # Explicitly excluded, always stays running
     networks:
       - app-network
 ```
 
-The label name is configurable via the `EXCLUSION_LABEL` environment variable (defaults to `sleep-proxy.exclude`). Any container with this label will:
-- Never be stopped during auto-sleep
-- Never be stopped by the manual shutdown endpoint
-- Continue running independently
+**Denylist mode behavior:**
 
-This is useful for:
-- **Databases** - Keep database containers always running
-- **Cache services** - Redis, Memcached that should stay warm
-- **Background workers** - Long-running tasks that shouldn't be interrupted
-- **Monitoring tools** - Keep observability services active
+| Label Value | Managed? | Use Case |
+|-------------|----------|----------|
+| No label | ✅ Yes | Default behavior - container is managed |
+| `sleep-proxy.enable=true` | ✅ Yes | Explicit (but redundant in denylist mode) |
+| `sleep-proxy.enable=false` | ❌ No | Exclude from management (e.g., databases, cache) |
+
+**When to use denylist mode:**
+- Most containers should be managed by the proxy
+- Only a few containers need to stay always-on (databases, caches)
+- Simpler setup when most services benefit from auto-sleep
+
+### Allowlist Mode
+
+Set `ALLOW_LIST_MODE=true` to explicitly control which containers are managed. **Only containers with the label set to `true` will be managed.**
+
+```yaml
+services:
+  sleep-proxy:
+    build: ./proxy
+    ports:
+      - '8000:8000'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TARGET_SERVICE=myapp
+      - TARGET_PORT=8080
+      - ALLOW_LIST_MODE=true  # Enable allowlist mode
+    networks:
+      - app-network
+
+  myapp:
+    image: your-app
+    labels:
+      - "sleep-proxy.enable=true"  # Explicitly managed
+    networks:
+      - app-network
+
+  worker:
+    image: your-worker
+    labels:
+      - "sleep-proxy.enable=true"  # Explicitly managed
+    networks:
+      - app-network
+
+  database:
+    image: postgres
+    # No label = NOT managed, stays running independently
+    networks:
+      - app-network
+
+  cache:
+    image: redis
+    # No label = NOT managed, stays running independently
+    networks:
+      - app-network
+```
+
+**Allowlist mode behavior:**
+
+| Label Value | Managed? | Use Case |
+|-------------|----------|----------|
+| No label | ❌ No | Default behavior - container is ignored |
+| `sleep-proxy.enable=false` | ❌ No | Same as no label (ignored) |
+| `sleep-proxy.enable=true` | ✅ Yes | Explicitly opt-in to management |
+
+**When to use allowlist mode:**
+- Complex projects with many services
+- Only a few specific containers should auto-sleep
+- Safer default (containers are left alone unless explicitly opted-in)
+- More explicit control over what gets managed
 
 ## Health Check Support
 
@@ -194,6 +280,7 @@ services:
       - SLEEP_TIMEOUT=3600      # 1 hour
       - CHECK_INTERVAL=5        # 5 seconds
       - ENDPOINT_PREFIX=admin   # Custom prefix
+      # ALLOW_LIST_MODE=false by default (denylist mode)
     networks:
       - app-network
     restart: unless-stopped
@@ -207,13 +294,14 @@ services:
       interval: 5s
       timeout: 10s
       retries: 10
+    # No label = managed in denylist mode
     networks:
       - app-network
 
   redis:
     image: redis:alpine
     labels:
-      - "sleep-proxy.exclude=true"  # Keep Redis always running
+      - "sleep-proxy.enable=false"  # Keep Redis always running
     networks:
       - app-network
 
