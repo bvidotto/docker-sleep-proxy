@@ -41,7 +41,7 @@ func (sp *SleepProxy) serveLoadingPage(w http.ResponseWriter, r *http.Request) {
 
 	// Inject check interval and endpoint prefix as meta tags
 	checkIntervalMs := int(sp.config.CheckInterval.Milliseconds())
-	html := fmt.Sprintf(string(htmlContent), checkIntervalMs, sp.config.EndpointPrefix)
+	html := fmt.Sprintf(string(htmlContent), checkIntervalMs, sp.config.EndpointPrefix, sp.config.EndpointPrefix, sp.config.EndpointPrefix)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -112,11 +112,11 @@ func (sp *SleepProxy) handleShutdown(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sp *SleepProxy) setupRoutes() {
-	// Serve static files
-	http.Handle("/static/", http.FileServer(http.FS(staticFiles)))
-
 	// API endpoints with prefix
 	prefix := "/" + sp.config.EndpointPrefix
+	
+	// Serve static files with prefix
+	http.Handle(prefix+"/static/", http.StripPrefix(prefix, http.FileServer(http.FS(staticFiles))))
 	http.HandleFunc(prefix+"/health", sp.handleHealth)
 	http.HandleFunc(prefix+"/shutdown", sp.handleShutdown)
 
