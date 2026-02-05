@@ -13,7 +13,7 @@ type Config struct {
 	SleepTimeout    time.Duration
 	CheckInterval   time.Duration
 	EndpointPrefix  string
-	ExclusionLabel  string
+	AllowListMode   bool
 	DockerHost      string
 }
 
@@ -28,6 +28,15 @@ func getEnvInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if intVal, err := strconv.Atoi(value); err == nil {
 			return intVal
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolVal, err := strconv.ParseBool(value); err == nil {
+			return boolVal
 		}
 	}
 	return defaultValue
@@ -54,7 +63,7 @@ func LoadConfig() Config {
 		SleepTimeout:    time.Duration(sleepTimeoutSec) * time.Second,
 		CheckInterval:   time.Duration(checkIntervalSec) * time.Second,
 		EndpointPrefix:  getEnv("ENDPOINT_PREFIX", "sleep-proxy"),
-		ExclusionLabel:  getEnv("EXCLUSION_LABEL", "sleep-proxy.exclude"),
+		AllowListMode:   getEnvBool("ALLOW_LIST_MODE", false),
 		DockerHost:      getEnv("DOCKER_HOST", ""),
 	}
 }
