@@ -69,6 +69,10 @@ func NewSleepProxy(config Config) (*SleepProxy, error) {
 	// Check if target containers are actually running
 	containers, err := sp.getProjectContainers(ctx)
 	if err == nil {
+		log.Printf("Found %d managed containers", len(containers))
+		for _, c := range containers {
+			log.Printf("Container: %s, State: %s", c.Names[0], c.State)
+		}
 		allRunning := true
 		for _, c := range containers {
 			if c.State != "running" {
@@ -79,6 +83,19 @@ func NewSleepProxy(config Config) (*SleepProxy, error) {
 		sp.containersUp = allRunning
 		if allRunning {
 			log.Printf("Target containers are already running")
+			
+			// Apply startup behavior
+			if config.StartupBehavior == "off" {
+				log.Printf("Startup behavior is 'off' - stopping containers immediately")
+				if err := sp.stopContainers(ctx); err != nil {
+					log.Printf("Warning: Failed to stop containers on startup: %v", err)
+				} else {
+					sp.containersUp = false
+					log.Printf("Containers stopped successfully")
+				}
+			} else {
+				log.Printf("Startup behavior is 'timeout' - containers will sleep after %v of inactivity", config.SleepTimeout)
+			}
 		} else {
 			log.Printf("Target containers are stopped")
 		}

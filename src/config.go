@@ -7,14 +7,15 @@ import (
 )
 
 type Config struct {
-	ProxyPort       string
-	TargetService   string
-	TargetPort      string
-	SleepTimeout    time.Duration
-	CheckInterval   time.Duration
-	EndpointPrefix  string
-	AllowListMode   bool
-	DockerHost      string
+	ProxyPort        string
+	TargetService    string
+	TargetPort       string
+	SleepTimeout     time.Duration
+	CheckInterval    time.Duration
+	EndpointPrefix   string
+	AllowListMode    bool
+	DockerHost       string
+	StartupBehavior  string // "timeout" (default) or "off"
 }
 
 func getEnv(key, defaultValue string) string {
@@ -56,14 +57,20 @@ func LoadConfig() Config {
 	sleepTimeoutSec := getEnvInt("SLEEP_TIMEOUT", 86400)   // 24 hours default
 	checkIntervalSec := getEnvInt("CHECK_INTERVAL", 5)     // 5 seconds default
 
+	startupBehavior := getEnv("STARTUP_BEHAVIOR", "timeout")
+	if startupBehavior != "timeout" && startupBehavior != "off" {
+		panic("STARTUP_BEHAVIOR must be either 'timeout' or 'off'")
+	}
+
 	return Config{
-		ProxyPort:       getEnv("PROXY_PORT", "8000"),
-		TargetService:   targetService,
-		TargetPort:      targetPort,
-		SleepTimeout:    time.Duration(sleepTimeoutSec) * time.Second,
-		CheckInterval:   time.Duration(checkIntervalSec) * time.Second,
-		EndpointPrefix:  getEnv("ENDPOINT_PREFIX", "sleep-proxy"),
-		AllowListMode:   getEnvBool("ALLOW_LIST_MODE", false),
-		DockerHost:      getEnv("DOCKER_HOST", ""),
+		ProxyPort:        getEnv("PROXY_PORT", "8000"),
+		TargetService:    targetService,
+		TargetPort:       targetPort,
+		SleepTimeout:     time.Duration(sleepTimeoutSec) * time.Second,
+		CheckInterval:    time.Duration(checkIntervalSec) * time.Second,
+		EndpointPrefix:   getEnv("ENDPOINT_PREFIX", "sleep-proxy"),
+		AllowListMode:    getEnvBool("ALLOW_LIST_MODE", false),
+		DockerHost:       getEnv("DOCKER_HOST", ""),
+		StartupBehavior:  startupBehavior,
 	}
 }

@@ -126,6 +126,32 @@ func (sp *SleepProxy) monitorActivity(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			// Check actual container state
+			containers, err := sp.getProjectContainers(ctx)
+			if err != nil {
+				log.Printf("Failed to get project containers: %v", err)
+				continue
+			}
+
+			// Determine if all containers are running
+			allRunning := len(containers) > 0
+			for _, c := range containers {
+				if c.State != "running" {
+					allRunning = false
+					break
+				}
+			}
+
+			// Update containersUp state if it's incorrect
+			if allRunning && !sp.areContainersUp() {
+				log.Printf("Detected containers are now running")
+				sp.setContainersUp(true)
+			} else if !allRunning && sp.areContainersUp() {
+				log.Printf("Detected containers are no longer running")
+				sp.setContainersUp(false)
+			}
+
+			// Check for timeout only if containers are running
 			if sp.areContainersUp() {
 				timeSinceActivity := time.Since(sp.getLastActivity())
 				if timeSinceActivity > sp.config.SleepTimeout {
@@ -133,6 +159,9 @@ func (sp *SleepProxy) monitorActivity(ctx context.Context) {
 						timeSinceActivity.Round(time.Second), sp.config.SleepTimeout)
 					if err := sp.stopContainers(ctx); err != nil {
 						log.Printf("Failed to stop containers: %v", err)
+					} else {
+						sp.setContainersUp(false)
+						log.Printf("Containers stopped successfully")
 					}
 				}
 			}
