@@ -6,19 +6,6 @@
 
 A lightweight reverse proxy for Docker containers that automatically manages container lifecycle based on traffic. Perfect for resource-constrained environments like Raspberry Pi where you want to run multiple services but conserve memory.
 
-## Installation
-
-Pull the latest image from GitHub Container Registry:
-
-```bash
-docker pull ghcr.io/bvidotto/docker-sleep-proxy:latest
-```
-
-**Supported Platforms:**
-- `linux/amd64` - x86_64 / AMD64
-- `linux/arm64` - ARM 64-bit (Raspberry Pi 4, Apple Silicon)
-- `linux/arm/v7` - ARM 32-bit (Raspberry Pi 3)
-
 ## Features
 
 - 🔄 **Auto-start on traffic** - Containers start automatically when accessed
@@ -36,6 +23,38 @@ docker pull ghcr.io/bvidotto/docker-sleep-proxy:latest
 3. Once containers pass health checks, traffic is proxied through
 4. After configured inactivity period, containers are automatically stopped
 5. The proxy itself stays running, using minimal resources
+
+## Installation
+
+Pull the latest image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/bvidotto/docker-sleep-proxy:latest
+```
+
+### Docker Image Tags
+
+This project publishes multiple Docker tags so you can choose the one that best fits your use case.
+
+The following image tags are available:
+
+- `:<full-sha>`, `:<short-sha>`  
+  Always published for every build (immutable).
+
+- `:main`  
+  Moving tag for the latest image built from the `main` branch.
+
+- `:X.Y.Z`, `:X.Y`, `:X`  
+  Published when a release tag `vX.Y.Z` is pushed.
+
+- `:latest`  
+  Updated on release tag builds, pointing to the newest published release image.
+
+### Supported Platforms
+
+- `linux/amd64` - x86_64 / AMD64
+- `linux/arm64` - ARM 64-bit (Raspberry Pi 4, Apple Silicon)
+- `linux/arm/v7` - ARM 32-bit (Raspberry Pi 3)
 
 ## Quick Start
 
