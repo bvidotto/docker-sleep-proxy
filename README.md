@@ -90,6 +90,7 @@ All configuration is done via environment variables:
 | `SLEEP_TIMEOUT` | No | `86400` | Seconds of inactivity before stopping containers (24h default) |
 | `CHECK_INTERVAL` | No | `5` | Seconds between health checks during startup |
 | `ENDPOINT_PREFIX` | No | `sleep-proxy` | Prefix for proxy management endpoints |
+| `STARTUP_BEHAVIOR` | No | `timeout` | Controls container behavior on startup: `timeout` = containers stay running until timeout expires; `off` = containers are stopped immediately |
 | `ALLOW_LIST_MODE` | No | `false` | When `true`, only containers with `sleep-proxy.enable=true` are managed (allowlist). When `false`, all containers are managed except those with `sleep-proxy.enable=false` (denylist) |
 | `DOCKER_HOST` | No | - | Docker host URL (e.g., `tcp://remote-docker:2375` for remote Docker or through proxy) |
 
